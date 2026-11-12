@@ -1,0 +1,165 @@
+{%- comment -%}
+  Renders one widget: posters and markup server-side (so it paints before
+  JavaScript), plus the JSON data island the loader reads.
+  Keep in step with src/markup.ts.
+
+  Params:
+    sv_videos   list of $app:sv_video metaobjects
+    sv_type     carousel | stories | grid | featured | popup
+    sv_settings parsed settings JSON (hash) or blank for defaults
+    sv_rules    parsed rules JSON or blank
+    sv_id       our widget id (events), or "product" / "collection"
+    sv_handle   metaobject handle
+    sv_popup    true when rendered by the app embed for the pop-up
+{%- endcomment -%}
+{%- liquid
+  assign cfg = app.metafields.sv.config.value
+  assign s = sv_settings
+  assign show_title = false
+  assign show_card = true
+  if s.style.showVideoTitle == true
+    assign show_title = true
+  endif
+  if s.style.showProductCard == false
+    assign show_card = false
+  endif
+  assign tile_w = 480
+  if sv_type == 'stories'
+    assign tile_w = 200
+  endif
+  assign page_collection_ids = ''
+  if product
+    assign page_collection_ids = product.collections | map: 'id' | join: ','
+  endif
+-%}
+{%- capture island -%}
+{
+  "id": {{ sv_id | json }},
+  "handle": {{ sv_handle | json }},
+  "type": {{ sv_type | json }},
+  "settings": {% if s %}{{ s | json }}{% else %}{}{% endif %},
+  "rules": {% if sv_rules %}{{ sv_rules | json }}{% else %}{}{% endif %},
+  "moneyFormat": {{ shop.money_format | json }},
+  "locale": {{ request.locale.iso_code | json }},
+  "root": {{ routes.root_url | append: '/' | replace: '//', '/' | json }},
+  "branding": {% if cfg.branding == false %}false{% else %}true{% endif %},
+  "cartMode": {{ cfg.cartMode | default: 'drawer' | json }},
+  "translations": {% if cfg.translations %}{{ cfg.translations | json }}{% else %}{}{% endif %},
+  "playerUrl": {{ 'sv-player.js' | asset_url | json }},
+  "page": {
+    "pageType": {{ template.name | json }},
+    "productId": {% if product %}{{ product.id | json }}{% else %}null{% endif %},
+    "collectionId": {% if collection %}{{ collection.id | json }}{% else %}null{% endif %},
+    "productCollectionIds": {{ page_collection_ids | split: ',' | json }}
+  },
+  "videos": [
+    {%- for v in sv_videos limit: 50 -%}
+      {%- assign file = v.video.value -%}
+      {%- assign poster = v.cover.value | default: file.preview_image -%}
+      {
+        "id": {{ v.app_id.value | default: v.id | json }},
+        "title": {{ v.title.value | default: '' | json }},
+        "caption": {{ v.caption.value | default: '' | json }},
+        "poster": {% if poster %}{{ poster | image_url: width: 720 | prepend: 'https:' | json }}{% else %}null{% endif %},
+        "sources": [
+          {%- for src in file.sources -%}
+            {"url": {{ src.url | json }}, "type": {{ src.mime_type | json }}, "width": {{ src.width | default: 0 }}, "height": {{ src.height | default: 0 }}}{% unless forloop.last %},{% endunless %}
+          {%- endfor -%}
+        ],
+        "products": [
+          {%- for p in v.products.value limit: 10 -%}
+            {%- assign variant = p.selected_or_first_available_variant -%}
+            {%- assign rating = p.metafields.reviews.rating.value -%}
+            {
+              "id": {{ p.id | json }},
+              "handle": {{ p.handle | json }},
+              "title": {{ p.title | json }},
+              "url": {{ p.url | json }},
+              "price": {{ p.price | default: 0 }},
+              "compareAtPrice": {% if p.compare_at_price > p.price %}{{ p.compare_at_price }}{% else %}null{% endif %},
+              "image": {% if p.featured_image %}{{ p.featured_image | image_url: width: 300 | prepend: 'https:' | json }}{% else %}null{% endif %},
+              "available": {{ p.available | json }},
+              "variantId": {% if variant %}{{ variant.id | json }}{% else %}null{% endif %},
+              "hasOptions": {% if p.has_only_default_variant %}false{% else %}true{% endif %}
+              {%- if rating -%}, "rating": {{ rating.rating | default: 0 }}, "ratingCount": {{ p.metafields.reviews.rating_count.value | default: 0 }}{%- endif -%}
+            }{% unless forloop.last %},{% endunless %}
+          {%- endfor -%}
+        ]
+      }{% unless forloop.last %},{% endunless %}
+    {%- endfor -%}
+  ]
+}
+{%- endcapture -%}
+
+{{ 'sv.css' | asset_url | stylesheet_tag: preload: true }}
+<script src="{{ 'sv-loader.js' | asset_url }}" defer></script>
+
+{%- if sv_popup -%}
+  <div data-sv-popup hidden><script type="application/json" data-sv-island>{{ island }}</script></div>
+{%- elsif sv_videos.size > 0 -%}
+  {%- capture style_vars -%}
+    {%- if s -%}
+      --sv-accent:{{ s.style.accentColor | escape }};--sv-text:{{ s.style.textColor | escape }};--sv-bg:{{ s.style.backgroundColor | escape }};--sv-radius:{{ s.style.cardRadius | default: 12 }}px;--sv-gap:{{ s.style.gap | default: 12 }}px;--sv-font:{{ s.style.fontFamily | escape }};--sv-h:{{ s.style.headingSize | default: 24 }}px;--sv-cols-d:{{ s.layout.desktop.columns | default: 5 }};--sv-cols-m:{{ s.layout.mobile.columns | default: 2 }};--sv-cw-d:{{ s.layout.desktop.cardWidth | default: 220 }}px;--sv-cw-m:{{ s.layout.mobile.cardWidth | default: 150 }}px
+    {%- endif -%}
+  {%- endcapture -%}
+  <div class="sv-root sv-w sv-w--{{ sv_type }}" data-sv-widget style="{{ style_vars | strip }}">
+    {%- if s.heading != blank -%}<h2 class="sv-heading">{{ s.heading | escape }}</h2>{%- endif -%}
+
+    {%- capture tiles -%}
+      {%- for v in sv_videos limit: 50 -%}
+        {%- assign file = v.video.value -%}
+        {%- assign poster = v.cover.value | default: file.preview_image -%}
+        {%- assign first_product = v.products.value | first -%}
+        <button type="button" class="sv-tile" data-sv-i="{{ forloop.index0 }}" aria-label="{{ v.title.value | default: 'Video' | escape }}">
+          <span class="sv-media">
+            {%- if poster -%}
+              {{ poster | image_url: width: tile_w | image_tag: class: 'sv-poster', alt: '', loading: 'lazy', sizes: '(min-width: 750px) 25vw, 50vw' }}
+            {%- endif -%}
+          </span>
+          {%- if show_title and v.title.value != blank -%}<span class="sv-tile-t">{{ v.title.value | escape }}</span>{%- endif -%}
+          {%- if show_card and first_product and sv_type != 'stories' -%}
+            <span class="sv-card">
+              {%- if first_product.featured_image -%}{{ first_product.featured_image | image_url: width: 96 | image_tag: class: 'sv-card-img', alt: '', loading: 'lazy', width: 40, height: 40 }}{%- endif -%}
+              <span class="sv-card-body"><span class="sv-card-t">{{ first_product.title | escape }}</span>
+                <span class="sv-price"><span class="sv-price-now">{{ first_product.price | money }}</span>{%- if first_product.compare_at_price > first_product.price %} <s class="sv-price-was">{{ first_product.compare_at_price | money }}</s>{%- endif -%}</span>
+              </span>
+            </span>
+          {%- endif -%}
+        </button>
+      {%- endfor -%}
+    {%- endcapture -%}
+
+    {%- case sv_type -%}
+      {%- when 'grid' -%}
+        <div class="sv-grid">{{ tiles }}</div>
+      {%- when 'featured' -%}
+        {%- assign fv = sv_videos | first -%}
+        {%- assign fp = fv.products.value | first -%}
+        {%- assign file = fv.video.value -%}
+        {%- assign poster = fv.cover.value | default: file.preview_image -%}
+        <div class="sv-featured">
+          <button type="button" class="sv-tile" data-sv-i="0" aria-label="{{ fv.title.value | default: 'Video' | escape }}">
+            <span class="sv-media">{%- if poster -%}{{ poster | image_url: width: 900 | image_tag: class: 'sv-poster', alt: '' }}{%- endif -%}</span>
+          </button>
+          <div class="sv-featured-info">
+            {%- if fv.title.value != blank -%}<h3 class="sv-featured-t">{{ fv.title.value | escape }}</h3>{%- endif -%}
+            {%- if fv.caption.value != blank -%}<p class="sv-featured-c">{{ fv.caption.value | escape }}</p>{%- endif -%}
+            {%- if fp -%}<button type="button" class="sv-btn" data-sv-i="0">{{ 'shop_now' | t }}</button>{%- endif -%}
+          </div>
+        </div>
+      {%- else -%}
+        <div class="sv-viewport"><div class="sv-track">{{ tiles }}</div></div>
+        {%- if sv_type == 'carousel' -%}
+          {%- unless s.carousel.arrows == false -%}
+            <button type="button" class="sv-arrow sv-prev" aria-label="{{ 'previous' | t }}">‹</button><button type="button" class="sv-arrow sv-next" aria-label="{{ 'next' | t }}">›</button>
+          {%- endunless -%}
+          {%- if s.carousel.dots -%}<div class="sv-dots"></div>{%- endif -%}
+        {%- endif -%}
+    {%- endcase -%}
+
+    {%- unless cfg.branding == false -%}
+      <a class="sv-badge" href="https://apps.shopify.com/" target="_blank" rel="nofollow noopener">{{ 'powered_by' | t }}</a>
+    {%- endunless -%}
+    <script type="application/json" data-sv-island>{{ island }}</script>
+  </div>
+{%- endif -%}

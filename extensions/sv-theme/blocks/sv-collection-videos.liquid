@@ -1,0 +1,25 @@
+{%- comment -%} Collection pages with per-collection videos (feature 34). {%- endcomment -%}
+{%- assign w = collection.metafields['$app'].widget.value -%}
+<div {{ block.shopify_attributes }}>
+  {%- if w -%}
+    {%- render 'sv-render',
+      sv_videos: w.videos.value,
+      sv_type: w.type.value,
+      sv_settings: w.settings.value,
+      sv_rules: w.rules.value,
+      sv_id: w.app_id.value,
+      sv_handle: w.system.handle
+    -%}
+  {%- elsif request.design_mode -%}
+    <p style="padding:16px;border:1px dashed #999;border-radius:8px">Assign a widget to this collection in the Shoppable videos app.</p>
+  {%- endif -%}
+</div>
+
+{% schema %}
+{
+  "name": "Collection videos",
+  "target": "section",
+  "enabled_on": { "templates": ["collection"] },
+  "settings": []
+}
+{% endschema %}

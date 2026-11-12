@@ -1,0 +1,53 @@
+{%- comment -%} Product page widget filled from videos tagged with this product (feature 33). {%- endcomment -%}
+{%- liquid
+  assign videos = product.metafields['$app'].videos.value
+  assign style = nil
+  assign style_handle = block.settings.style_widget_id | strip | handleize
+  if style_handle != blank
+    assign style = metaobjects['$app:sv_widget'][style_handle]
+  endif
+-%}
+<div {{ block.shopify_attributes }}>
+  {%- if videos.size > 0 -%}
+    {%- if style -%}
+      {%- assign settings_json = style.settings.value -%}
+    {%- endif -%}
+    {%- render 'sv-render',
+      sv_videos: videos,
+      sv_type: block.settings.layout,
+      sv_settings: settings_json,
+      sv_id: 'product',
+      sv_handle: 'product'
+    -%}
+  {%- elsif request.design_mode -%}
+    <p style="padding:16px;border:1px dashed #999;border-radius:8px">Tag this product on a video in the Shoppable videos app to fill this block.</p>
+  {%- endif -%}
+</div>
+
+{% schema %}
+{
+  "name": "Product videos",
+  "target": "section",
+  "enabled_on": { "templates": ["product"] },
+  "settings": [
+    {
+      "type": "select",
+      "id": "layout",
+      "label": "Layout",
+      "default": "carousel",
+      "options": [
+        { "value": "carousel", "label": "Carousel" },
+        { "value": "stories", "label": "Stories" },
+        { "value": "grid", "label": "Grid" },
+        { "value": "featured", "label": "Featured video" }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "style_widget_id",
+      "label": "Copy style from widget (optional)",
+      "info": "A widget's block id; its colors, sizes and buttons are used here"
+    }
+  ]
+}
+{% endschema %}

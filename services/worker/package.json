@@ -1,0 +1,14 @@
+{
+  "name": "@sv/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --platform=node --format=esm --target=node22 --external:@prisma/client --external:.prisma --external:@shopify/* --outfile=dist/main.js",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@sv/shared": "*",
+    "@sv/core": "*"
+  }
+}

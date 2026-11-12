@@ -1,0 +1,270 @@
+// Postgres is the source of truth. Shopify holds a published copy that a
+// republish can always rebuild (see docs/plan.md, "Data model").
+// Every domain table carries shop_id.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Shopify session storage (offline and online tokens). Owned by
+// @shopify/shopify-app-session-storage-prisma; the worker reads the offline
+// session for a shop to call the Admin API.
+model Session {
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+
+  @@index([shop])
+}
+
+model Shop {
+  id            String    @id @default(uuid()) @db.Uuid
+  domain        String    @unique
+  // Plan key from packages/shared/src/plans.ts
+  plan          String    @default("free")
+  // Shop-wide storefront config: pop-up, cart mode, custom CSS, translations.
+  settings      Json      @default("{}")
+  installedAt   DateTime  @default(now()) @map("installed_at")
+  uninstalledAt DateTime? @map("uninstalled_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  videos         Video[]
+  widgets        Widget[]
+  socialAccounts SocialAccount[]
+  importJobs     ImportJob[]
+
+  @@map("shops")
+}
+
+model Video {
+  id               String   @id @default(uuid()) @db.Uuid
+  shopId           String   @map("shop_id") @db.Uuid
+  title            String   @default("")
+  caption          String   @default("")
+  // gid://shopify/Video/... once fileCreate succeeds
+  shopifyFileId    String?  @map("shopify_file_id")
+  // upload | instagram | tiktok
+  source           String   @default("upload")
+  sourceUrl        String?  @map("source_url")
+  // Platform post id, used to dedupe imports
+  sourceExternalId String?  @map("source_external_id")
+  metaobjectId     String?  @map("metaobject_id")
+  // uploading | processing | ready | failed
+  status           String   @default("uploading")
+  error            String?
+  originalFilename String?  @map("original_filename")
+  fileSize         BigInt?  @map("file_size")
+  durationMs       Int?     @map("duration_ms")
+  width            Int?
+  height           Int?
+  // Shopify-generated preview image (poster)
+  posterUrl        String?  @map("poster_url")
+  // Custom cover image chosen by the merchant (gid://shopify/MediaImage/...)
+  coverFileId      String?  @map("cover_file_id")
+  coverUrl         String?  @map("cover_url")
+  // [{url, mimeType, width, height}] from Shopify's processed sources
+  sources          Json     @default("[]")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  shop     Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  products VideoProduct[]
+  widgets  WidgetVideo[]
+
+  @@unique([shopId, source, sourceExternalId])
+  @@index([shopId, status])
+  @@index([shopId, createdAt])
+  @@map("videos")
+}
+
+model VideoProduct {
+  videoId   String @map("video_id") @db.Uuid
+  // gid://shopify/Product/...
+  productId String @map("product_id")
+  position  Int    @default(0)
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@id([videoId, productId])
+  @@index([productId])
+  @@map("video_products")
+}
+
+model Widget {
+  id           String    @id @default(uuid()) @db.Uuid
+  shopId       String    @map("shop_id") @db.Uuid
+  name         String
+  // carousel | stories | grid | featured | popup
+  type         String
+  // draft | published
+  status       String    @default("draft")
+  settings     Json      @default("{}")
+  // Show rules: pages, products, collections
+  rules        Json      @default("{}")
+  // Metaobject handle the theme block points at
+  handle       String
+  metaobjectId String?   @map("metaobject_id")
+  // True when there are edits since the last publish
+  dirty        Boolean   @default(true)
+  publishedAt  DateTime? @map("published_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  shop   Shop          @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  videos WidgetVideo[]
+
+  @@unique([shopId, handle])
+  @@map("widgets")
+}
+
+model WidgetVideo {
+  widgetId String @map("widget_id") @db.Uuid
+  videoId  String @map("video_id") @db.Uuid
+  position Int    @default(0)
+
+  widget Widget @relation(fields: [widgetId], references: [id], onDelete: Cascade)
+  video  Video  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@id([widgetId, videoId])
+  @@map("widget_videos")
+}
+
+model SocialAccount {
+  id           String    @id @default(uuid()) @db.Uuid
+  shopId       String    @map("shop_id") @db.Uuid
+  // instagram | tiktok
+  platform     String
+  username     String
+  autoSync     Boolean   @default(false) @map("auto_sync")
+  lastSyncedAt DateTime? @map("last_synced_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  shop       Shop        @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  importJobs ImportJob[]
+
+  @@unique([shopId, platform, username])
+  @@map("social_accounts")
+}
+
+model ImportJob {
+  id                String    @id @default(uuid()) @db.Uuid
+  shopId            String    @map("shop_id") @db.Uuid
+  sourceUrl         String    @map("source_url")
+  socialAccountId   String?   @map("social_account_id") @db.Uuid
+  // queued | fetching | uploading | processing | done | duplicate | failed
+  status            String    @default("queued")
+  error             String?
+  videoId           String?   @map("video_id") @db.Uuid
+  rightsConfirmedAt DateTime  @map("rights_confirmed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  shop          Shop           @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount? @relation(fields: [socialAccountId], references: [id], onDelete: SetNull)
+
+  @@index([shopId, createdAt])
+  @@map("import_jobs")
+}
+
+// Plain Postgres job queue, claimed with FOR UPDATE SKIP LOCKED.
+model Job {
+  id          BigInt    @id @default(autoincrement())
+  kind        String
+  shopId      String?   @map("shop_id") @db.Uuid
+  payload     Json      @default("{}")
+  // queued | running | done | failed
+  status      String    @default("queued")
+  runAt       DateTime  @default(now()) @map("run_at")
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5) @map("max_attempts")
+  lockedAt    DateTime? @map("locked_at")
+  lockedBy    String?   @map("locked_by")
+  lastError   String?   @map("last_error")
+  // Optional key to stop the same job being queued twice
+  dedupeKey   String?   @unique @map("dedupe_key")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, runAt])
+  @@map("jobs")
+}
+
+// Raw storefront events from the web pixel. Kept 14 days.
+model Event {
+  id        BigInt   @id @default(autoincrement())
+  ts        DateTime
+  shopId    String   @map("shop_id") @db.Uuid
+  clientId  String   @map("client_id")
+  type      String
+  widgetId  String?  @map("widget_id")
+  videoId   String?  @map("video_id")
+  productId String?  @map("product_id")
+  value     Float?
+  // Extra data, e.g. order id, currency and line items for checkout_completed
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([shopId, ts])
+  @@index([shopId, clientId, ts])
+  @@index([ts])
+  @@map("events")
+}
+
+model StatsDaily {
+  shopId      String   @map("shop_id") @db.Uuid
+  day         DateTime @db.Date
+  // "" when the row is not split by widget or video
+  widgetId    String   @default("") @map("widget_id")
+  videoId     String   @default("") @map("video_id")
+  impressions Int      @default(0)
+  views       Int      @default(0)
+  watchMs     BigInt   @default(0) @map("watch_ms")
+  completions Int      @default(0)
+  clicks      Int      @default(0)
+  carts       Int      @default(0)
+  orders      Int      @default(0)
+  revenue     Decimal  @default(0) @db.Decimal(14, 2)
+
+  @@id([shopId, day, widgetId, videoId])
+  @@map("stats_daily")
+}
+
+model AttributedOrder {
+  shopId    String   @map("shop_id") @db.Uuid
+  orderId   String   @map("order_id")
+  clientId  String   @map("client_id")
+  videoId   String   @map("video_id")
+  // direct: added to cart from this video and bought within 7 days.
+  // influenced: watched this video in the 7 days before ordering.
+  kind      String
+  // Direct rows: the product bought. Influenced rows: "".
+  productId String   @default("") @map("product_id")
+  // Direct: the line value. Influenced: the order total.
+  value     Decimal  @db.Decimal(14, 2)
+  currency  String
+  orderedAt DateTime @map("ordered_at")
+
+  @@id([shopId, orderId, videoId, kind, productId])
+  @@index([shopId, orderedAt])
+  @@map("attributed_orders")
+}

@@ -1,0 +1,57 @@
+# Local stack. Typical use:
+#   docker compose up -d          # Postgres, migrations, worker, ingest
+#   npm run dev                   # app server via `shopify app dev` (tunnel + login)
+# Production-like app container too:
+#   docker compose --profile app up -d
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sv_dev
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      retries: 30
+
+  migrate:
+    build: { context: ., target: runtime }
+    command: ["npx", "prisma", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/sv_dev
+    depends_on:
+      db: { condition: service_healthy }
+
+  worker:
+    build: { context: ., target: worker }
+    env_file: [{ path: .env, required: false }]
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/sv_dev
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  ingest:
+    build: { context: ., target: ingest }
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/sv_dev
+    ports: ["8081:8081"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    restart: unless-stopped
+
+  app:
+    profiles: [app]
+    build: { context: ., target: app }
+    env_file: [{ path: .env, required: false }]
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/sv_dev
+    ports: ["3000:3000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+volumes:
+  pgdata:

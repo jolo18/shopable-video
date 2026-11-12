@@ -1,0 +1,115 @@
+# Shopify app configuration. `shopify app config link` fills client_id,
+# name, application_url and redirect URLs for your Partner app.
+client_id = ""
+name = "shopable-video"
+embedded = true
+
+[access_scopes]
+# Plan, build rules: ask for nothing else. No customer, order or theme scopes.
+scopes = "write_files,write_metaobjects,write_products,write_pixels,read_customer_events,unauthenticated_read_metaobjects,unauthenticated_read_product_listings"
+
+[webhooks]
+api_version = "2026-10"
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/uninstalled"
+  topics = ["app/uninstalled"]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/scopes_update"
+  topics = ["app/scopes_update"]
+
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/app/subscriptions_update"
+  topics = ["app_subscriptions/update"]
+
+  # Mandatory compliance topics for public apps
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/compliance"
+  compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+
+# App-owned data. The Publisher writes these; the theme extension reads them.
+# Keep in sync with packages/shared/src/shopify-defs.ts.
+
+[metaobjects.app.sv_video]
+name = "Shoppable video"
+display_name_field = "title"
+access.admin = "merchant_read"
+access.storefront = "public_read"
+
+  [metaobjects.app.sv_video.fields.video]
+  name = "Video"
+  type = "file_reference"
+  required = true
+
+  [metaobjects.app.sv_video.fields.title]
+  name = "Title"
+  type = "single_line_text_field"
+
+  [metaobjects.app.sv_video.fields.caption]
+  name = "Caption"
+  type = "multi_line_text_field"
+
+  [metaobjects.app.sv_video.fields.cover]
+  name = "Cover image"
+  type = "file_reference"
+
+  [metaobjects.app.sv_video.fields.products]
+  name = "Products"
+  type = "list.product_reference"
+
+  [metaobjects.app.sv_video.fields.app_id]
+  name = "App id"
+  type = "single_line_text_field"
+
+[metaobjects.app.sv_widget]
+name = "Shoppable video widget"
+display_name_field = "name"
+access.admin = "merchant_read"
+access.storefront = "public_read"
+
+  [metaobjects.app.sv_widget.fields.name]
+  name = "Name"
+  type = "single_line_text_field"
+
+  [metaobjects.app.sv_widget.fields.type]
+  name = "Layout"
+  type = "single_line_text_field"
+
+  [metaobjects.app.sv_widget.fields.videos]
+  name = "Videos"
+  type = "list.metaobject_reference<$app:sv_video>"
+
+  [metaobjects.app.sv_widget.fields.settings]
+  name = "Settings"
+  type = "json"
+
+  [metaobjects.app.sv_widget.fields.rules]
+  name = "Show rules"
+  type = "json"
+
+  [metaobjects.app.sv_widget.fields.app_id]
+  name = "App id"
+  type = "single_line_text_field"
+
+[product.metafields.app.videos]
+name = "Shoppable videos"
+type = "list.metaobject_reference<$app:sv_video>"
+access.admin = "merchant_read"
+access.storefront = "public_read"
+
+[collection.metafields.app.widget]
+name = "Shoppable video widget"
+type = "metaobject_reference<$app:sv_widget>"
+access.admin = "merchant_read"
+access.storefront = "public_read"
+
+[auth]
+redirect_urls = ["https://example.com/api/auth"]
+
+[pos]
+embedded = false
+
+[build]
+automatically_update_urls_on_dev = true
+include_config_on_deploy = true
