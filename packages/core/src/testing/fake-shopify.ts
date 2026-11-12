@@ -229,6 +229,10 @@ export class FakeShopify {
     return { currentAppInstallation: { id: this.appInstallationId, activeSubscriptions: this.activeSubscriptions } };
   }
 
+  op_svActiveSubscriptions() {
+    return { currentAppInstallation: { activeSubscriptions: this.activeSubscriptions } };
+  }
+
   op_svWidgetDefinition() {
     return { metaobjectDefinitionByType: { type: "app--1--sv_widget" } };
   }

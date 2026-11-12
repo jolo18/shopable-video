@@ -10,7 +10,8 @@ Working name: shopable-video. The final app name is not decided yet.
 
 ## Status
 
-- Planning done. Milestones 1-8 are being built on branch `claude/laughing-ramanujan-7d0o8h`, tested against a faked Shopify. Dev-store checks for each milestone's done criteria are still to do.
+- Milestones 1-8 are code-complete on branch `claude/laughing-ramanujan-7d0o8h`, with automated tests against a faked Shopify and a real Postgres. None of the done criteria has been checked on a dev store yet; the README has the checklist. Milestone 9 (launch) is not started.
+- The social import provider is still a stand-in (`FakeProvider`); `HttpProvider` is the template for the paid one.
 - Repo: https://github.com/jolo18/shopable-video. Currently public; decide whether it stays public.
 - Agent skill docs are in `docs/agents/` (GitHub issues, default triage labels, single-context domain docs).
 - Triage labels `needs-triage`, `needs-info`, `ready-for-agent` and `ready-for-human` are not created yet: the first token lacked Issues write. Create them with `gh label create` once `gh` has a token with Issues read/write. `wontfix` already exists.

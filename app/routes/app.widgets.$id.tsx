@@ -403,6 +403,16 @@ export default function WidgetEditor() {
                 />
               </s-section>
 
+              <s-section heading="Embed code">
+                <s-paragraph>
+                  For page builders and themes without app blocks: paste this where the widget should appear. The app embed must be on, and
+                  the widget published.
+                </s-paragraph>
+                <s-box padding="base" background="subdued" borderRadius="base">
+                  <code>{`<div data-sv-embed="${widget.handle}"></div>`}</code>
+                </s-box>
+              </s-section>
+
               <s-stack direction="inline" gap="base">
                 <s-button type="submit" onClick={() => setIntent("save")} {...(submitting ? { loading: true } : {})}>
                   Save draft
