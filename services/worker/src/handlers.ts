@@ -1,6 +1,10 @@
 import {
   attributeOrders,
   cleanupEvents,
+  importVideoHandler,
+  profileSyncHandler,
+  providerFromEnv,
+  scheduleSyncs,
   onVideoReady,
   pollStatusHandler,
   prisma,
@@ -8,11 +12,13 @@ import {
   rollup,
   ShopifyPublisher,
   type ClientFor,
+  type ImportProvider,
 } from "@sv/core";
 import type { Handlers } from "./runner";
 
 export interface HandlerDeps {
   clientFor: ClientFor;
+  provider?: ImportProvider;
 }
 
 export async function publisherForShop(clientFor: ClientFor, shopId: string) {
@@ -22,7 +28,13 @@ export async function publisherForShop(clientFor: ClientFor, shopId: string) {
 
 export function buildHandlers(deps?: HandlerDeps): Handlers {
   const clientFor = deps?.clientFor ?? lazyClientFor();
+  const provider = deps?.provider ?? providerFromEnv();
   return {
+    "import.video": importVideoHandler(clientFor, provider),
+    "import.profile_sync": profileSyncHandler(provider),
+    "sync.schedule": async () => {
+      await scheduleSyncs();
+    },
     "video.poll_status": pollStatusHandler(clientFor, async (videoId) => {
       const v = await prisma.video.findUniqueOrThrow({ where: { id: videoId } });
       await onVideoReady(await publisherForShop(clientFor, v.shopId), v.shopId, videoId);
