@@ -7,7 +7,7 @@ import {
 } from "@shopify/shopify-app-react-router/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import { PAID_PLAN_KEYS, PLANS } from "@sv/shared";
-import { ensureShop } from "@sv/core";
+import { enqueue, ensureShop } from "@sv/core";
 import prisma from "./db.server";
 
 // One billing entry per paid plan, keyed by the plan name (plan decision 5).
@@ -42,7 +42,10 @@ const shopify = shopifyApp({
   },
   hooks: {
     afterAuth: async ({ session }) => {
-      await ensureShop(session.shop);
+      const shop = await ensureShop(session.shop);
+      // Storefront config, web pixel and a rebuild of anything published
+      // before a reinstall run in the worker.
+      await enqueue("shop.publish_all", {}, { shopId: shop.id, dedupeKey: `publish_all:${shop.id}` });
     },
   },
   ...(process.env.SHOP_CUSTOM_DOMAIN

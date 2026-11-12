@@ -1,4 +1,14 @@
-import { onVideoReady, pollStatusHandler, prisma, publishAll, ShopifyPublisher, type ClientFor } from "@sv/core";
+import {
+  attributeOrders,
+  cleanupEvents,
+  onVideoReady,
+  pollStatusHandler,
+  prisma,
+  publishAll,
+  rollup,
+  ShopifyPublisher,
+  type ClientFor,
+} from "@sv/core";
 import type { Handlers } from "./runner";
 
 export interface HandlerDeps {
@@ -20,6 +30,17 @@ export function buildHandlers(deps?: HandlerDeps): Handlers {
     "shop.publish_all": async (job) => {
       if (!job.shopId) return;
       await publishAll(await publisherForShop(clientFor, job.shopId), job.shopId);
+    },
+    // Attribute first so the rollup sees new orders.
+    "stats.attribute": async () => {
+      await attributeOrders();
+    },
+    "stats.rollup": async () => {
+      await attributeOrders();
+      await rollup();
+    },
+    "events.cleanup": async () => {
+      await cleanupEvents();
     },
   };
 }

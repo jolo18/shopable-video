@@ -12,3 +12,5 @@ export * from "./products";
 export * from "./widgets";
 export * from "./publisher";
 export * from "./publishing";
+export * from "./analytics/stats";
+export * from "./analytics/read";

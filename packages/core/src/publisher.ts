@@ -71,6 +71,25 @@ const METAFIELDS_DELETE = `#graphql
 const APP_INSTALLATION = `#graphql
   query svAppInstallation { currentAppInstallation { id } }`;
 
+const WEB_PIXEL = `#graphql
+  query svWebPixel { webPixel { id settings } }`;
+
+const WEB_PIXEL_CREATE = `#graphql
+  mutation svWebPixelCreate($webPixel: WebPixelInput!) {
+    webPixelCreate(webPixel: $webPixel) {
+      webPixel { id }
+      userErrors { field message code }
+    }
+  }`;
+
+const WEB_PIXEL_UPDATE = `#graphql
+  mutation svWebPixelUpdate($id: ID!, $webPixel: WebPixelInput!) {
+    webPixelUpdate(id: $id, webPixel: $webPixel) {
+      webPixel { id }
+      userErrors { field message code }
+    }
+  }`;
+
 const WIDGET_DEFINITION = `#graphql
   query svWidgetDefinition { metaobjectDefinitionByType(type: "$app:sv_widget") { type } }`;
 
@@ -254,6 +273,29 @@ export class ShopifyPublisher implements Publisher {
     ]);
   }
 
+  /**
+   * Connects the web pixel (feature 61) with this shop's ingest URL.
+   * The pixel only loads for shoppers who gave analytics consent.
+   */
+  async ensureWebPixel(ingestUrl: string) {
+    if (!ingestUrl) return;
+    const settings = JSON.stringify({ ingestUrl, shop: this.shop.domain });
+    let existing: { id: string; settings: string } | null = null;
+    try {
+      existing = (await this.client.request(WEB_PIXEL)).webPixel;
+    } catch {
+      existing = null; // no pixel yet: the query errors with "not found"
+    }
+    if (existing?.settings === settings) return;
+    if (existing) {
+      const d = await this.client.request(WEB_PIXEL_UPDATE, { id: existing.id, webPixel: { settings } });
+      assertNoUserErrors("webPixelUpdate", d.webPixelUpdate);
+    } else {
+      const d = await this.client.request(WEB_PIXEL_CREATE, { webPixel: { settings } });
+      assertNoUserErrors("webPixelCreate", d.webPixelCreate);
+    }
+  }
+
   /** App-data metafield with shop-wide storefront config. */
   async publishConfig() {
     if (!this.appInstallationId) {
@@ -286,6 +328,7 @@ export class ShopifyPublisher implements Publisher {
       storefrontToken,
       widgetType: def.metaobjectDefinitionByType?.type ?? "",
     };
+    await this.ensureWebPixel(config.ingestUrl);
     await this.setMetafields([
       {
         ownerId: this.appInstallationId,

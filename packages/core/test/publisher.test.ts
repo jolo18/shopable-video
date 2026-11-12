@@ -128,6 +128,7 @@ describe("publisher", () => {
     expect(cfg).toMatchObject({ storefrontToken: "sf-1", widgetType: "app--1--sv_widget" });
     await pub.publishConfig();
     expect(fake.storefrontTokens).toBe(1); // token is reused
+    expect(JSON.parse(fake.webPixel!.settings)).toEqual({ ingestUrl: "https://ingest.example", shop: fake.shop });
     expect(fake.metafield(P1, "$app", "videos")).toBeDefined();
   });
 

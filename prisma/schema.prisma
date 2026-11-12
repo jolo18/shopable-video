@@ -254,13 +254,17 @@ model AttributedOrder {
   orderId   String   @map("order_id")
   clientId  String   @map("client_id")
   videoId   String   @map("video_id")
-  // direct | influenced
+  // direct: added to cart from this video and bought within 7 days.
+  // influenced: watched this video in the 7 days before ordering.
   kind      String
+  // Direct rows: the product bought. Influenced rows: "".
+  productId String   @default("") @map("product_id")
+  // Direct: the line value. Influenced: the order total.
   value     Decimal  @db.Decimal(14, 2)
   currency  String
   orderedAt DateTime @map("ordered_at")
 
-  @@id([shopId, orderId, videoId, kind])
+  @@id([shopId, orderId, videoId, kind, productId])
   @@index([shopId, orderedAt])
   @@map("attributed_orders")
 }

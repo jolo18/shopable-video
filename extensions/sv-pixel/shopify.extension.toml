@@ -1,0 +1,24 @@
+type = "web_pixel_extension"
+name = "sv-pixel"
+runtime_context = "strict"
+
+# All tracking goes through the pixel, so the merchant's consent settings
+# apply (plan, build rules). Analytics consent only.
+[customer_privacy]
+analytics = true
+marketing = false
+preferences = false
+sale_of_data = "disabled"
+
+[settings]
+type = "object"
+
+[settings.fields.ingestUrl]
+name = "Ingest URL"
+description = "Where events are sent. Set by the app."
+type = "single_line_text_field"
+
+[settings.fields.shop]
+name = "Shop domain"
+description = "Set by the app."
+type = "single_line_text_field"

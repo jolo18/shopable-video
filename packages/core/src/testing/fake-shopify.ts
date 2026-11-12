@@ -96,7 +96,11 @@ export class FakeShopify {
     const vars = options?.variables ?? {};
     const handler = this.handlers[name] ?? (this as unknown as Record<string, (v: Vars) => unknown>)[`op_${name}`];
     if (!handler) return json({ errors: [{ message: `FakeShopify: no handler for ${name}` }] });
-    return json({ data: handler.call(this, vars) });
+    try {
+      return json({ data: handler.call(this, vars) });
+    } catch (err) {
+      return json({ errors: [{ message: (err as Error).message }] });
+    }
   };
 
   client(): ShopifyClient {
@@ -227,6 +231,20 @@ export class FakeShopify {
 
   op_svWidgetDefinition() {
     return { metaobjectDefinitionByType: { type: "app--1--sv_widget" } };
+  }
+
+  webPixel: { id: string; settings: string } | null = null;
+  op_svWebPixel() {
+    if (!this.webPixel) throw Object.assign(new Error("No web pixel was found for this app."), { fake: true });
+    return { webPixel: this.webPixel };
+  }
+  op_svWebPixelCreate(v: Vars) {
+    this.webPixel = { id: this.nextId("WebPixel"), settings: v.webPixel.settings };
+    return { webPixelCreate: { webPixel: { id: this.webPixel.id }, userErrors: [] } };
+  }
+  op_svWebPixelUpdate(v: Vars) {
+    this.webPixel = { id: v.id, settings: v.webPixel.settings };
+    return { webPixelUpdate: { webPixel: { id: v.id }, userErrors: [] } };
   }
 
   storefrontTokens = 0;
