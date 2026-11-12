@@ -1,0 +1,10 @@
+.cache
+.git
+build
+node_modules
+**/node_modules
+**/dist
+.env
+.env.*
+.shopify
+coverage

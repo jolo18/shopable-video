@@ -10,14 +10,14 @@ Working name: shopable-video. The final app name is not decided yet.
 
 ## Status
 
-- Planning done. No app code yet.
-- Repo: https://github.com/jolo18/shopable-video, branch `main`, nothing committed yet. Currently public.
+- Planning done. Milestones 1-8 are being built on branch `claude/laughing-ramanujan-7d0o8h`, tested against a faked Shopify. Dev-store checks for each milestone's done criteria are still to do.
+- Repo: https://github.com/jolo18/shopable-video. Currently public; decide whether it stays public.
 - Agent skill docs are in `docs/agents/` (GitHub issues, default triage labels, single-context domain docs).
 - Triage labels `needs-triage`, `needs-info`, `ready-for-agent` and `ready-for-human` are not created yet: the first token lacked Issues write. Create them with `gh label create` once `gh` has a token with Issues read/write. `wontfix` already exists.
 
 ## Open before milestone 1
 
-1. **Rust or TypeScript for the ingest API and worker.** Everything else is TypeScript either way. Rust fit: ingest is the best case (hot path, tiny surface, no Shopify library needed), and the worker's import pipeline is good (streams big files with flat memory). Stats jobs gain little, because they're mostly SQL. The app server stays TypeScript, since Shopify has no Rust server library. Mixing languages means two toolchains, shared contracts generated for both sides, and a plain Postgres job table instead of a Node-only queue library.
+1. ~~**Rust or TypeScript for the ingest API and worker.**~~ Decided 2026-11-12: TypeScript for v1 (decision 6). Notes kept for a later rewrite: Everything else is TypeScript either way. Rust fit: ingest is the best case (hot path, tiny surface, no Shopify library needed), and the worker's import pipeline is good (streams big files with flat memory). Stats jobs gain little, because they're mostly SQL. The app server stays TypeScript, since Shopify has no Rust server library. Mixing languages means two toolchains, shared contracts generated for both sides, and a plain Postgres job table instead of a Node-only queue library.
 2. **Final app name.** It can stay "shopable-video" until the listing.
 3. **Jose's setup:** Shopify Partner account, a Partner dev store with a few products, Shopify CLI installed (`npm i -g @shopify/cli`, Node 22+), and local Postgres (Docker or Postgres.app).
 
@@ -30,6 +30,7 @@ Working name: shopable-video. The final app name is not decided yet.
 | 3 | Hosting | GCP: Cloud Run and Cloud SQL |
 | 4 | Social import | A paid fetch provider behind an interface, with a rights checkbox before import. Provider, key and budget come before milestone 7 |
 | 5 | Pricing | Free plan plus paid tiers gated on video count and features, unlimited views. Billed with Shopify App Pricing |
+| 6 | Ingest and worker language | TypeScript for v1, one toolchain. The job queue is a plain Postgres table, so a Rust ingest or worker can replace them later without a migration |
 | 7 | v1 line | The 45 rows marked v1 below |
 
 ## Features
