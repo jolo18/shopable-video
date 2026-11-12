@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 const entries = [
   { in: "extensions/sv-theme/src/loader.ts", out: "extensions/sv-theme/assets/sv-loader.js" },
   { in: "extensions/sv-theme/src/player.ts", out: "extensions/sv-theme/assets/sv-player.js" },
-  { in: "extensions/sv-theme/src/embed.ts", out: "extensions/sv-embed-snippet.js", optional: true },
+  { in: "extensions/sv-theme/src/embed.ts", out: "extensions/sv-theme/assets/sv-embed.js" },
 ];
 
 for (const e of entries) {

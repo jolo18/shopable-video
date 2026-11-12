@@ -71,6 +71,17 @@ const METAFIELDS_DELETE = `#graphql
 const APP_INSTALLATION = `#graphql
   query svAppInstallation { currentAppInstallation { id } }`;
 
+const WIDGET_DEFINITION = `#graphql
+  query svWidgetDefinition { metaobjectDefinitionByType(type: "$app:sv_widget") { type } }`;
+
+const STOREFRONT_TOKEN_CREATE = `#graphql
+  mutation svStorefrontToken($input: StorefrontAccessTokenInput!) {
+    storefrontAccessTokenCreate(input: $input) {
+      storefrontAccessToken { accessToken }
+      userErrors { field message }
+    }
+  }`;
+
 export class ShopifyPublisher implements Publisher {
   private appInstallationId?: string;
 
@@ -251,6 +262,15 @@ export class ShopifyPublisher implements Publisher {
     }
     const shop = await this.db.shop.findUniqueOrThrow({ where: { id: this.shop.id } });
     const settings = normalizeShopSettings(shop.settings);
+    const raw = (shop.settings ?? {}) as Record<string, unknown>;
+    let storefrontToken = typeof raw.storefrontToken === "string" ? raw.storefrontToken : "";
+    if (!storefrontToken) {
+      const t = await this.client.request(STOREFRONT_TOKEN_CREATE, { input: { title: "Shoppable videos embed" } });
+      assertNoUserErrors("storefrontAccessTokenCreate", t.storefrontAccessTokenCreate);
+      storefrontToken = t.storefrontAccessTokenCreate.storefrontAccessToken.accessToken;
+      await this.db.shop.update({ where: { id: shop.id }, data: { settings: { ...raw, storefrontToken } } });
+    }
+    const def = await this.client.request(WIDGET_DEFINITION);
     const popup = settings.popupWidgetId
       ? await this.db.widget.findFirst({
           where: { id: settings.popupWidgetId, shopId: shop.id, status: "published" },
@@ -263,6 +283,8 @@ export class ShopifyPublisher implements Publisher {
       customCss: settings.customCss,
       translations: settings.translations,
       popupWidget: popup?.handle ?? null,
+      storefrontToken,
+      widgetType: def.metaobjectDefinitionByType?.type ?? "",
     };
     await this.setMetafields([
       {

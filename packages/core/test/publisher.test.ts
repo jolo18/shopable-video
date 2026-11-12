@@ -125,6 +125,9 @@ describe("publisher", () => {
     const cfg = JSON.parse(fake.metafield(fake.appInstallationId, "sv", "config")!.value);
     expect(cfg).toMatchObject({ branding: true, cartMode: "cart_page", ingestUrl: "https://ingest.example" });
     expect(cfg.customCss).not.toMatch(/<\/style|<script/i);
+    expect(cfg).toMatchObject({ storefrontToken: "sf-1", widgetType: "app--1--sv_widget" });
+    await pub.publishConfig();
+    expect(fake.storefrontTokens).toBe(1); // token is reused
     expect(fake.metafield(P1, "$app", "videos")).toBeDefined();
   });
 

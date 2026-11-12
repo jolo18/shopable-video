@@ -225,12 +225,32 @@ export class FakeShopify {
     return { currentAppInstallation: { id: this.appInstallationId, activeSubscriptions: this.activeSubscriptions } };
   }
 
+  op_svWidgetDefinition() {
+    return { metaobjectDefinitionByType: { type: "app--1--sv_widget" } };
+  }
+
+  storefrontTokens = 0;
+  op_svStorefrontToken() {
+    this.storefrontTokens++;
+    return { storefrontAccessTokenCreate: { storefrontAccessToken: { accessToken: `sf-${this.storefrontTokens}` }, userErrors: [] } };
+  }
+
   op_svProducts(v: Vars) {
     return {
       nodes: v.ids.map((id: string) => {
         const p = this.products.get(id);
         return p
-          ? { id: p.id, title: p.title, handle: p.handle, status: p.status, featuredMedia: p.imageUrl ? { preview: { image: { url: p.imageUrl } } } : null }
+          ? {
+              id: p.id,
+              title: p.title,
+              handle: p.handle,
+              status: p.status,
+              featuredMedia: p.imageUrl ? { preview: { image: { url: p.imageUrl } } } : null,
+              hasOnlyDefaultVariant: true,
+              priceRangeV2: { minVariantPrice: { amount: p.price ?? "10.00" } },
+              compareAtPriceRange: { maxVariantCompareAtPrice: null },
+              variants: { nodes: [{ id: p.id.replace("Product", "ProductVariant") }] },
+            }
           : null;
       }),
     };

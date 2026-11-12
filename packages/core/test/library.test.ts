@@ -34,7 +34,7 @@ describe("video library", () => {
     expect(await prisma.video.count({ where: { status: "processing" } })).toBe(20);
 
     const handler = pollStatusHandler(async () => fake.client());
-    let jobs = await claim("t", 50, ["video.poll_status"]);
+    const jobs = await claim("t", 50, ["video.poll_status"]);
     expect(jobs).toHaveLength(20);
     // Still processing: the handler asks to retry later.
     await expect(handler(jobs[0])).rejects.toBeInstanceOf(RetryLater);

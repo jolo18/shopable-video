@@ -1,0 +1,45 @@
+{%- comment -%}
+  App embed (feature 70): site-wide pop-up with its show rules, custom CSS,
+  and the page-builder embed hydrator (feature 38).
+{%- endcomment -%}
+{%- liquid
+  assign cfg = app.metafields.sv.config.value
+  assign popup = nil
+  if cfg.popupWidget != blank
+    assign popup = metaobjects['$app:sv_widget'][cfg.popupWidget]
+  endif
+-%}
+{%- if cfg.customCss != blank -%}
+  <style data-sv-custom-css>{{ cfg.customCss }}</style>
+{%- endif -%}
+{%- if popup -%}
+  {%- render 'sv-render',
+    sv_videos: popup.videos.value,
+    sv_type: 'popup',
+    sv_settings: popup.settings.value,
+    sv_rules: popup.rules.value,
+    sv_id: popup.app_id.value,
+    sv_handle: cfg.popupWidget,
+    sv_popup: true
+  -%}
+{%- endif -%}
+<script
+  data-sv-embed-src="{{ 'sv-embed.js' | asset_url }}"
+  data-sv-sf-token="{{ cfg.storefrontToken | escape }}"
+  data-sv-sf-type="{{ cfg.widgetType | escape }}"
+  data-sv-player="{{ 'sv-player.js' | asset_url }}"
+  data-sv-locale="{{ request.locale.iso_code }}"
+  data-sv-money="{{ shop.money_format | escape }}"
+  data-sv-cart="{{ cfg.cartMode | default: 'drawer' }}"
+  data-sv-branding="{% if cfg.branding == false %}0{% else %}1{% endif %}"
+  type="application/json"
+>{"translations": {% if cfg.translations %}{{ cfg.translations | json }}{% else %}{}{% endif %}}</script>
+<script src="{{ 'sv-loader.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Shoppable videos",
+  "target": "body",
+  "settings": []
+}
+{% endschema %}

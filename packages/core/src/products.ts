@@ -6,6 +6,11 @@ export interface ProductSummary {
   handle: string;
   status: string | null;
   imageUrl: string | null;
+  /** Minor units */
+  price: number;
+  compareAtPrice: number | null;
+  hasOptions: boolean;
+  variantId: string | null;
 }
 
 const NODES = `#graphql
@@ -17,6 +22,10 @@ const NODES = `#graphql
         handle
         status
         featuredMedia { preview { image { url } } }
+        hasOnlyDefaultVariant
+        priceRangeV2 { minVariantPrice { amount } }
+        compareAtPriceRange { maxVariantCompareAtPrice { amount } }
+        variants(first: 1) { nodes { id } }
       }
     }
   }`;
@@ -38,10 +47,20 @@ export async function productSummaries(client: ShopifyClient, ids: string[]): Pr
               handle: n.handle,
               status: n.status,
               imageUrl: n.featuredMedia?.preview?.image?.url ?? null,
+              price: cents(n.priceRangeV2?.minVariantPrice?.amount) ?? 0,
+              compareAtPrice: cents(n.compareAtPriceRange?.maxVariantCompareAtPrice?.amount),
+              hasOptions: n.hasOnlyDefaultVariant === false,
+              variantId: n.variants?.nodes?.[0]?.id ?? null,
             }
-          : { id, title: "Deleted product", handle: "", status: null, imageUrl: null },
+          : { id, title: "Deleted product", handle: "", status: null, imageUrl: null, price: 0, compareAtPrice: null, hasOptions: false, variantId: null },
       );
     });
   }
   return out;
+}
+
+function cents(amount: string | undefined | null): number | null {
+  if (amount === undefined || amount === null) return null;
+  const n = Math.round(Number(amount) * 100);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }

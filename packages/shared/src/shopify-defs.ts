@@ -49,12 +49,16 @@ export interface StorefrontConfig {
   ingestUrl: string;
   /** What happens after add to cart */
   cartMode: "drawer" | "cart_page" | "stay";
-  /** Merchant CSS, scoped by the loader under .sv-root */
+  /** Merchant CSS, printed as-is by the app embed; target .sv-root */
   customCss: string;
   /** locale -> key -> text overrides */
   translations: Record<string, Record<string, string>>;
   /** Handle of the widget the app embed shows as a floating pop-up */
   popupWidget: string | null;
+  /** Public Storefront API token for the page-builder embed */
+  storefrontToken: string;
+  /** Resolved sv_widget type ("app--123--sv_widget") for the Storefront API */
+  widgetType: string;
 }
 
 export const MAX_CUSTOM_CSS = 20_000;

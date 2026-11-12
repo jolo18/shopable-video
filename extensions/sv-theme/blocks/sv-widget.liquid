@@ -1,0 +1,39 @@
+{%- comment -%} Any widget built in the app, picked by its block id (handle). {%- endcomment -%}
+{%- liquid
+  assign handle = block.settings.widget_id | strip | handleize
+  assign w = nil
+  if handle != blank
+    assign w = metaobjects['$app:sv_widget'][handle]
+  endif
+-%}
+<div {{ block.shopify_attributes }}>
+  {%- if w -%}
+    {%- render 'sv-render',
+      sv_videos: w.videos.value,
+      sv_type: w.type.value,
+      sv_settings: w.settings.value,
+      sv_rules: w.rules.value,
+      sv_id: w.app_id.value,
+      sv_handle: handle
+    -%}
+  {%- elsif request.design_mode -%}
+    <p style="padding:16px;border:1px dashed #999;border-radius:8px">
+      {%- if handle == blank -%}Paste a widget's block id from the Shoppable videos app.{%- else -%}No published widget with the id "{{ handle }}". Publish it in the app first.{%- endif -%}
+    </p>
+  {%- endif -%}
+</div>
+
+{% schema %}
+{
+  "name": "Shoppable videos",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "widget_id",
+      "label": "Widget block id",
+      "info": "Copy it from the widget's page in the Shoppable videos app"
+    }
+  ]
+}
+{% endschema %}
